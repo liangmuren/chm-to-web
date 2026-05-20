@@ -1,0 +1,6 @@
+.pycache/
+__pycache__/
+extracted/
+site/
+site-preview.png
+*.chm
