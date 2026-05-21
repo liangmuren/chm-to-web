@@ -4,3 +4,4 @@ extracted/
 site/
 site-preview.png
 *.chm
+.DS_Store

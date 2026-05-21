@@ -410,7 +410,15 @@ INDEX_HTML = """<!doctype html>
         <input id="searchInput" type="search" autocomplete="off" spellcheck="false" placeholder="搜索">
       </div>
 
-      <nav class="tree" id="tree" aria-label="目录"></nav>
+      <div class="side-tabs" role="tablist" aria-label="侧栏视图">
+        <button class="side-tab is-active" type="button" role="tab" aria-controls="tree" aria-selected="true" data-panel="tree">目录</button>
+        <button class="side-tab" type="button" role="tab" aria-controls="favoritesPanel" aria-selected="false" data-panel="favorites">收藏</button>
+        <button class="side-tab" type="button" role="tab" aria-controls="recentPanel" aria-selected="false" data-panel="recent">最近</button>
+      </div>
+
+      <nav class="tree side-panel" id="tree" role="tabpanel" aria-label="目录"></nav>
+      <section class="saved-panel side-panel" id="favoritesPanel" role="tabpanel" aria-label="收藏" hidden></section>
+      <section class="saved-panel side-panel" id="recentPanel" role="tabpanel" aria-label="最近" hidden></section>
       <section class="results" id="results" hidden></section>
     </aside>
 
@@ -432,6 +440,9 @@ INDEX_HTML = """<!doctype html>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z"/></svg>
           </button>
         </div>
+        <button class="icon-button favorite-toggle" id="favoriteToggle" type="button" aria-label="收藏当前页面" title="收藏当前页面">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.35 2.65 5.37 5.93.86-4.29 4.18 1.01 5.9L12 16.87l-5.3 2.79 1.01-5.9-4.29-4.18 5.93-.86L12 3.35Zm0 4.5-1.33 2.69-2.97.43 2.15 2.1-.51 2.95L12 14.63l2.66 1.4-.51-2.96 2.15-2.1-2.97-.43L12 7.85Z"/></svg>
+        </button>
         <a class="open-page" id="openPage" href="#" target="_blank" rel="noopener">单页</a>
       </header>
       <iframe id="viewer" title="正文"></iframe>
@@ -578,8 +589,48 @@ input {
   font-size: 14px;
 }
 
+.side-tabs {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0 14px 10px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f3f5f7;
+}
+
+.side-tab {
+  min-width: 0;
+  height: 28px;
+  padding: 0 6px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-tab:hover {
+  color: var(--text);
+}
+
+.side-tab.is-active {
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(26, 35, 44, 0.08);
+}
+
 .tree,
-.results {
+.results,
+.saved-panel {
   flex: 1;
   min-height: 0;
   overflow-x: hidden;
@@ -591,18 +642,21 @@ input {
 }
 
 .tree::-webkit-scrollbar,
-.results::-webkit-scrollbar {
+.results::-webkit-scrollbar,
+.saved-panel::-webkit-scrollbar {
   width: 10px;
 }
 
 .tree::-webkit-scrollbar-track,
-.results::-webkit-scrollbar-track {
+.results::-webkit-scrollbar-track,
+.saved-panel::-webkit-scrollbar-track {
   background: #edf0f3;
   border-radius: 999px;
 }
 
 .tree::-webkit-scrollbar-thumb,
-.results::-webkit-scrollbar-thumb {
+.results::-webkit-scrollbar-thumb,
+.saved-panel::-webkit-scrollbar-thumb {
   min-height: 42px;
   border: 2px solid #edf0f3;
   border-radius: 999px;
@@ -610,7 +664,8 @@ input {
 }
 
 .tree::-webkit-scrollbar-thumb:hover,
-.results::-webkit-scrollbar-thumb:hover {
+.results::-webkit-scrollbar-thumb:hover,
+.saved-panel::-webkit-scrollbar-thumb:hover {
   background: #98a3b1;
 }
 
@@ -695,8 +750,112 @@ input {
   width: 22px;
 }
 
-.results[hidden] {
+.results[hidden],
+.side-panel[hidden] {
   display: none;
+}
+
+.saved-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.saved-action {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.saved-action:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.saved-item {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.saved-item:hover,
+.saved-item:focus-within {
+  background: #f0f3f6;
+  outline: 0;
+}
+
+.saved-item.is-active {
+  background: #f7e8e8;
+  color: #8f2626;
+}
+
+.saved-open {
+  min-width: 0;
+  padding: 10px 8px 10px 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.saved-open:focus {
+  outline: 0;
+}
+
+.saved-title {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-meta {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-remove {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  margin-right: 6px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.saved-remove:hover {
+  background: rgba(180, 60, 60, 0.10);
+  color: var(--accent);
+}
+
+.saved-remove svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
 }
 
 .result-button {
@@ -761,7 +920,7 @@ input {
 
 .readerbar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   gap: 10px;
   align-items: center;
   padding: 8px 12px;
@@ -792,6 +951,12 @@ input {
   width: 18px;
   height: 18px;
   fill: currentColor;
+}
+
+.favorite-toggle.is-active {
+  border-color: #e2c861;
+  background: #fff8d7;
+  color: #9a6a00;
 }
 
 .nav-toggle {
@@ -919,13 +1084,24 @@ iframe {
   }
 
   .readerbar {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
   }
 
   .highlight-tools {
     width: 100%;
     max-width: none;
     grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .favorite-toggle {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .open-page {
+    grid-column: 4;
+    grid-row: 1;
   }
 }
 """
@@ -941,6 +1117,10 @@ APP_JS = """(() => {
   const crumbs = document.getElementById("crumbs");
   const appMeta = document.getElementById("appMeta");
   const navToggle = document.getElementById("navToggle");
+  const sideTabs = [...document.querySelectorAll(".side-tab")];
+  const favoritesPanel = document.getElementById("favoritesPanel");
+  const recentPanel = document.getElementById("recentPanel");
+  const favoriteToggle = document.getElementById("favoriteToggle");
   const highlightTools = document.getElementById("highlightTools");
   const highlightLabel = document.getElementById("highlightLabel");
   const highlightPrev = document.getElementById("highlightPrev");
@@ -955,6 +1135,10 @@ APP_JS = """(() => {
   let activeHighlightQuery = "";
   let highlightMatches = [];
   let highlightIndex = -1;
+  let activeSidePanel = "tree";
+  let readerState = loadReaderState();
+  let restoreScrollAfterLoad = false;
+  let iframeScrollTimer = 0;
 
   appMeta.textContent = `${data.stats.pages} 页`;
 
@@ -991,6 +1175,72 @@ APP_JS = """(() => {
     const alias = aliasByPath.get(path) || aliasByPath.get(file);
     if (!alias) return "";
     return fragment && !alias.includes("#") ? `${alias}#${fragment}` : alias;
+  }
+
+  function storageKey() {
+    const raw = `${data.title}|${data.stats?.toc || ""}|${data.stats?.pages || 0}`;
+    return `chm-to-web:${raw}`;
+  }
+
+  function loadReaderState() {
+    const fallback = { favorites: [], recent: [], scroll: {}, lastPath: "" };
+    try {
+      const parsed = JSON.parse(localStorage.getItem(storageKey()) || "null");
+      if (!parsed || typeof parsed !== "object") return fallback;
+      return {
+        favorites: Array.isArray(parsed.favorites) ? parsed.favorites : [],
+        recent: Array.isArray(parsed.recent) ? parsed.recent : [],
+        scroll: parsed.scroll && typeof parsed.scroll === "object" ? parsed.scroll : {},
+        lastPath: typeof parsed.lastPath === "string" ? parsed.lastPath : "",
+      };
+    } catch (_error) {
+      return fallback;
+    }
+  }
+
+  function saveReaderState() {
+    try {
+      localStorage.setItem(storageKey(), JSON.stringify(readerState));
+    } catch (_error) {
+      // Saved reader state is optional.
+    }
+  }
+
+  function pageTitle(path) {
+    return nodeByPath.get(path)?.title || data.search.find((entry) => entry.path === path)?.title || path;
+  }
+
+  function pageCrumb(path) {
+    const node = nodeByPath.get(path);
+    if (!node) return "";
+    return ancestry(node).map((item) => item.title).join(" / ");
+  }
+
+  function normalizeSavedList(list, limit) {
+    const seen = new Set();
+    const normalized = [];
+    list.forEach((item) => {
+      const path = typeof item === "string" ? item : item?.path;
+      const resolved = resolveContentPath(path || "");
+      if (!resolved || seen.has(resolved)) return;
+      seen.add(resolved);
+      normalized.push({
+        path: resolved,
+        title: item?.title || pageTitle(resolved),
+        time: Number(item?.time) || Date.now(),
+      });
+    });
+    return normalized.slice(0, limit);
+  }
+
+  function sanitizeReaderState() {
+    readerState.favorites = normalizeSavedList(readerState.favorites, 200);
+    readerState.recent = normalizeSavedList(readerState.recent, 50);
+    readerState.lastPath = resolveContentPath(readerState.lastPath) || "";
+    Object.keys(readerState.scroll).forEach((path) => {
+      if (!resolveContentPath(path)) delete readerState.scroll[path];
+    });
+    saveReaderState();
   }
 
   function searchTerms(query) {
@@ -1061,9 +1311,231 @@ APP_JS = """(() => {
   }
 
   function showTreePanel() {
-    searchInput.value = "";
-    treeEl.hidden = false;
-    resultsEl.hidden = true;
+    showSidePanel("tree", true);
+  }
+
+  function showSidePanel(panel, clearSearch = true) {
+    activeSidePanel = panel;
+    if (clearSearch) searchInput.value = "";
+
+    const showingSearch = searchInput.value.trim().length > 0;
+    resultsEl.hidden = !showingSearch;
+    treeEl.hidden = showingSearch || panel !== "tree";
+    favoritesPanel.hidden = showingSearch || panel !== "favorites";
+    recentPanel.hidden = showingSearch || panel !== "recent";
+
+    sideTabs.forEach((tab) => {
+      const active = tab.dataset.panel === panel;
+      tab.classList.toggle("is-active", active);
+      tab.setAttribute("aria-selected", String(active));
+    });
+
+    if (panel === "favorites") renderFavorites();
+    if (panel === "recent") renderRecent();
+    if (panel === "tree" && activePath) updateActive(activePath);
+  }
+
+  function renderSavedPanel(panel, heading, items, options = {}) {
+    panel.replaceChildren();
+
+    const header = document.createElement("div");
+    header.className = "saved-heading";
+    const label = document.createElement("span");
+    label.textContent = heading;
+    header.appendChild(label);
+
+    if (options.clearAction) {
+      const clear = document.createElement("button");
+      clear.className = "saved-action";
+      clear.type = "button";
+      clear.textContent = "清空";
+      clear.disabled = !items.length;
+      clear.addEventListener("click", options.clearAction);
+      header.appendChild(clear);
+    }
+    panel.appendChild(header);
+
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "result-empty";
+      empty.textContent = options.emptyText || "还没有内容。";
+      panel.appendChild(empty);
+      return;
+    }
+
+    items.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "saved-item";
+      row.classList.toggle("is-active", item.path === activePath);
+
+      const open = document.createElement("button");
+      open.className = "saved-open";
+      open.type = "button";
+      open.addEventListener("click", () => {
+        loadPage(item.path, true);
+        document.body.classList.remove("nav-open");
+      });
+
+      const text = document.createElement("div");
+      const title = document.createElement("div");
+      title.className = "saved-title";
+      title.textContent = pageTitle(item.path);
+      const meta = document.createElement("div");
+      meta.className = "saved-meta";
+      meta.textContent = options.metaText ? options.metaText(item) : pageCrumb(item.path);
+      text.append(title, meta);
+      open.appendChild(text);
+      row.appendChild(open);
+
+      if (options.removeAction) {
+        const remove = document.createElement("button");
+        remove.className = "saved-remove";
+        remove.type = "button";
+        remove.setAttribute("aria-label", `移除 ${pageTitle(item.path)}`);
+        remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z"/></svg>';
+        remove.addEventListener("click", () => options.removeAction(item.path));
+        row.appendChild(remove);
+      }
+
+      panel.appendChild(row);
+    });
+  }
+
+  function renderFavorites() {
+    renderSavedPanel(favoritesPanel, `收藏 · ${readerState.favorites.length}`, readerState.favorites, {
+      emptyText: "点击顶部星标收藏当前页面。",
+      removeAction(path) {
+        readerState.favorites = readerState.favorites.filter((item) => item.path !== path);
+        saveReaderState();
+        renderFavorites();
+        updateFavoriteButton();
+      },
+    });
+  }
+
+  function renderRecent() {
+    renderSavedPanel(recentPanel, `最近 · ${readerState.recent.length}`, readerState.recent, {
+      emptyText: "打开页面后会自动记录最近阅读。",
+      clearAction() {
+        readerState.recent = [];
+        saveReaderState();
+        renderRecent();
+      },
+      metaText(item) {
+        return `${formatRelativeTime(item.time)} · ${pageCrumb(item.path)}`;
+      },
+    });
+  }
+
+  function renderSavedPanels() {
+    if (!favoritesPanel.hidden) renderFavorites();
+    if (!recentPanel.hidden) renderRecent();
+  }
+
+  function formatRelativeTime(time) {
+    const seconds = Math.max(0, Math.floor((Date.now() - time) / 1000));
+    if (seconds < 60) return "刚刚";
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} 分钟前`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} 小时前`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days} 天前`;
+    return new Date(time).toLocaleDateString();
+  }
+
+  function updateFavoriteButton() {
+    const active = readerState.favorites.some((item) => item.path === activePath);
+    favoriteToggle.classList.toggle("is-active", active);
+    favoriteToggle.setAttribute("aria-label", active ? "取消收藏当前页面" : "收藏当前页面");
+    favoriteToggle.title = active ? "取消收藏当前页面" : "收藏当前页面";
+  }
+
+  function toggleFavorite() {
+    if (!activePath) return;
+    const exists = readerState.favorites.some((item) => item.path === activePath);
+    if (exists) {
+      readerState.favorites = readerState.favorites.filter((item) => item.path !== activePath);
+    } else {
+      readerState.favorites.unshift({ path: activePath, title: pageTitle(activePath), time: Date.now() });
+    }
+    readerState.favorites = normalizeSavedList(readerState.favorites, 200);
+    saveReaderState();
+    updateFavoriteButton();
+    renderSavedPanels();
+  }
+
+  function recordRecent(path) {
+    if (!path) return;
+    readerState.lastPath = path;
+    readerState.recent = [
+      { path, title: pageTitle(path), time: Date.now() },
+      ...readerState.recent.filter((item) => item.path !== path),
+    ].slice(0, 50);
+    saveReaderState();
+    renderSavedPanels();
+  }
+
+  function getIframeScrollTop() {
+    try {
+      const doc = viewer.contentDocument;
+      const win = viewer.contentWindow;
+      const positions = [
+        win?.scrollY,
+        win?.pageYOffset,
+        doc?.scrollingElement?.scrollTop,
+        doc?.documentElement?.scrollTop,
+        doc?.body?.scrollTop,
+      ];
+      return Math.max(0, Math.round(Math.max(...positions.map((value) => Number(value) || 0))));
+    } catch (_error) {
+      return 0;
+    }
+  }
+
+  function saveCurrentScroll() {
+    if (!activePath) return;
+    const top = getIframeScrollTop();
+    if (top > 0) readerState.scroll[activePath] = top;
+    else delete readerState.scroll[activePath];
+    saveReaderState();
+  }
+
+  function restoreCurrentScroll() {
+    if (!restoreScrollAfterLoad || activeHighlightQuery) return;
+    const top = Number(readerState.scroll[activePath] || 0);
+    if (!top) return;
+
+    try {
+      const doc = viewer.contentDocument;
+      const win = viewer.contentWindow;
+      const scrollingElement = doc?.scrollingElement || doc?.documentElement || doc?.body;
+      requestAnimationFrame(() => {
+        win?.scrollTo?.(0, top);
+        if (scrollingElement) scrollingElement.scrollTop = top;
+        if (doc?.documentElement) doc.documentElement.scrollTop = top;
+        if (doc?.body) doc.body.scrollTop = top;
+      });
+    } catch (_error) {
+      // Restoring scroll is enhancement-only.
+    }
+  }
+
+  function wireIframeScrollTracking() {
+    try {
+      const doc = viewer.contentDocument;
+      const win = viewer.contentWindow;
+      if (!doc || doc.__chmReaderScrollWired) return;
+      doc.__chmReaderScrollWired = true;
+      const saveSoon = () => {
+        clearTimeout(iframeScrollTimer);
+        iframeScrollTimer = window.setTimeout(saveCurrentScroll, 160);
+      };
+      doc.addEventListener("scroll", saveSoon, true);
+      win?.addEventListener?.("scroll", saveSoon, { passive: true });
+    } catch (_error) {
+      // Saved progress is enhancement-only.
+    }
   }
 
   function scrollTreeItemIntoView(li) {
@@ -1158,6 +1630,8 @@ APP_JS = """(() => {
     }
 
     crumbs.textContent = node ? ancestry(node).map((item) => item.title).join(" / ") : path;
+    updateFavoriteButton();
+    renderSavedPanels();
   }
 
   function updateHash(path, pushHash) {
@@ -1171,13 +1645,16 @@ APP_JS = """(() => {
   }
 
   function loadPage(path, pushHash, highlightQuery = "") {
+    saveCurrentScroll();
     activePath = path;
     activeHighlightQuery = highlightQuery;
     highlightMatches = [];
     highlightIndex = -1;
+    restoreScrollAfterLoad = !highlightQuery;
     viewer.src = contentUrl(path);
     openPage.href = contentUrl(path);
     updateActive(path);
+    recordRecent(path);
     updateHighlightTools();
     updateHash(path, pushHash);
   }
@@ -1455,8 +1932,7 @@ APP_JS = """(() => {
   function runSearch() {
     const query = searchInput.value.trim();
     if (!query) {
-      treeEl.hidden = false;
-      resultsEl.hidden = true;
+      showSidePanel(activeSidePanel, false);
       return;
     }
 
@@ -1472,13 +1948,20 @@ APP_JS = """(() => {
       .map((item) => item.entry);
 
     treeEl.hidden = true;
+    favoritesPanel.hidden = true;
+    recentPanel.hidden = true;
     resultsEl.hidden = false;
     renderResults(matches, query);
   }
 
   flatten(data.tree);
+  sanitizeReaderState();
   treeEl.appendChild(renderTree(data.tree));
+  showSidePanel("tree", false);
 
+  sideTabs.forEach((tab) => {
+    tab.addEventListener("click", () => showSidePanel(tab.dataset.panel || "tree", true));
+  });
   searchInput.addEventListener("input", runSearch);
   searchInput.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && searchInput.value) {
@@ -1488,6 +1971,8 @@ APP_JS = """(() => {
     }
   });
   navToggle.addEventListener("click", () => document.body.classList.toggle("nav-open"));
+  favoriteToggle.addEventListener("click", toggleFavorite);
+  window.addEventListener("beforeunload", saveCurrentScroll);
 
   viewer.addEventListener("load", () => {
     try {
@@ -1505,6 +1990,8 @@ APP_JS = """(() => {
       }
       wireIframeLinks();
       applyIframeHighlights();
+      restoreCurrentScroll();
+      wireIframeScrollTracking();
     } catch (_error) {
       // Some browsers restrict file iframe access; the reader still works.
     }
@@ -1520,7 +2007,7 @@ APP_JS = """(() => {
   });
 
   const hashPath = window.location.hash ? decodeURIComponent(window.location.hash.slice(1)) : "";
-  const startPath = resolveContentPath(hashPath) || data.firstPage;
+  const startPath = resolveContentPath(hashPath) || (!hashPath ? readerState.lastPath : "") || data.firstPage;
   if (startPath) loadPage(startPath, false);
 })();
 """

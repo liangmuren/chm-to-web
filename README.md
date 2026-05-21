@@ -18,6 +18,10 @@ The converter uses `7z` or `7zz` when available, parses the `.hhc` table of cont
 
 For Chinese CHM files, the tool decodes CHM metadata with GB18030 while leaving original pages intact so browser charset handling continues to work.
 
+## Reader Features
+
+The generated reader includes a multi-level table of contents, full-text search, in-page search highlights, favorites, recent pages, last-read page restore, and per-page scroll position restore using browser local storage.
+
 ## Preview Output
 
 After conversion, serve the generated static directory:
