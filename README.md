@@ -1,39 +1,48 @@
-# CHM to Web
+# CHM 转 Web
 
-Reusable CHM-to-static-web converter.
+可复用的 CHM 到静态网页转换工具。
 
-## Convert A CHM
+## 转换 CHM
 
 ```sh
-python3 tools/chm_to_web.py /path/to/book.chm site --title "Book Title"
+python3 tools/chm_to_web.py /path/to/book.chm site --title "书籍标题"
 ```
 
-The converter uses `7z` or `7zz` when available, parses the `.hhc` table of contents, preserves the original HTML/assets, and generates:
+转换器会在可用时优先使用 `7z` 或 `7zz`，解析 `.hhc` 目录文件，保留原始 HTML/资源文件，并生成以下内容：
 
 - `index.html`
 - `styles.css`
 - `app.js`
 - `data.js`
 - `content/`
+- `favicon.svg`
 
-For Chinese CHM files, the tool decodes CHM metadata with GB18030 while leaving original pages intact so browser charset handling continues to work.
+对于中文 CHM 文件，工具会使用 GB18030 解码 CHM 元数据，同时保持原始页面不变，以便浏览器继续按页面自身字符集正确渲染。
 
-## Reader Features
+## 阅读器功能
 
-The generated reader includes a multi-level table of contents, full-text search, in-page search highlights, favorites, recent pages, last-read page restore, and per-page scroll position restore using browser local storage.
+生成的阅读器包含：
 
-## Preview Output
+- 多级目录导航
+- 全文搜索
+- 页内搜索高亮
+- 收藏功能
+- 最近阅读
+- 上次阅读页面恢复
+- 基于浏览器本地存储的每页滚动位置恢复
 
-After conversion, serve the generated static directory:
+## 预览输出
+
+转换完成后，可以将生成的静态目录作为本地站点启动：
 
 ```sh
 python3 -m http.server 8000 --bind 127.0.0.1 --directory site
 ```
 
-Then visit:
+然后访问：
 
 ```text
 http://127.0.0.1:8000/
 ```
 
-Generated pages, extracted CHM contents, screenshots, caches, and source `.chm` files are intentionally ignored by git.
+生成页面、CHM 解压内容、截图、缓存以及源 `.chm` 文件已在 git 中被有意忽略。
