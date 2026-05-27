@@ -309,7 +309,9 @@ def parse_page(path: Path, max_chars: int) -> tuple[str, str, str]:
 
 def build_search_index(content_dir: Path, title_by_path: dict[str, str], max_chars: int) -> list[dict[str, str]]:
     entries: list[dict[str, str]] = []
-    for path in sorted(content_dir.rglob("*.htm")):
+    # Some CHM archives mix `.htm` and `.html`; both should be searchable.
+    page_paths = sorted([*content_dir.rglob("*.htm"), *content_dir.rglob("*.html")])
+    for path in page_paths:
         relative = path.relative_to(content_dir).as_posix()
         parsed_title, text, excerpt = parse_page(path, max_chars=max_chars)
         title = title_by_path.get(relative, parsed_title)
