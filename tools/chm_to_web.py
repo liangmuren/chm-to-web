@@ -363,13 +363,16 @@ def write_site(
         "contentBase": content_dir_name,
         "firstPage": first_page(tree) or (search_index[0]["path"] if search_index else ""),
         "tree": tree,
-        "search": search_index,
+        "search": [],
+        "searchSource": "search-data.js",
         "aliases": aliases,
         "stats": stats,
     }
 
     data_json = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    search_json = json.dumps(search_index, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     write_text(output_dir / "data.js", f"window.CHM_DATA = {data_json};\n")
+    write_text(output_dir / "search-data.js", f"window.CHM_SEARCH = {search_json};\n")
     write_text(output_dir / "index.html", INDEX_HTML.format(title=html_escape(title)))
     write_text(output_dir / "styles.css", STYLES_CSS)
     write_text(output_dir / "app.js", APP_JS)
@@ -1141,6 +1144,8 @@ APP_JS = """(() => {
   let readerState = loadReaderState();
   let restoreScrollAfterLoad = false;
   let iframeScrollTimer = 0;
+  let searchIndex = Array.isArray(data.search) ? data.search : [];
+  let searchLoadPromise = null;
 
   appMeta.textContent = `${data.stats.pages} 页`;
 
@@ -1209,7 +1214,7 @@ APP_JS = """(() => {
   }
 
   function pageTitle(path) {
-    return nodeByPath.get(path)?.title || data.search.find((entry) => entry.path === path)?.title || path;
+    return nodeByPath.get(path)?.title || searchIndex.find((entry) => entry.path === path)?.title || path;
   }
 
   function pageCrumb(path) {
@@ -1864,6 +1869,47 @@ APP_JS = """(() => {
     updateHighlightTools();
   }
 
+  function showSearchPanel() {
+    treeEl.hidden = true;
+    favoritesPanel.hidden = true;
+    recentPanel.hidden = true;
+    resultsEl.hidden = false;
+  }
+
+  function renderSearchMessage(message) {
+    resultsEl.replaceChildren();
+    const summary = document.createElement("div");
+    summary.className = "result-summary";
+    summary.textContent = message;
+    resultsEl.appendChild(summary);
+    showSearchPanel();
+  }
+
+  function loadSearchIndex() {
+    if (searchIndex.length) return Promise.resolve(searchIndex);
+    if (searchLoadPromise) return searchLoadPromise;
+
+    searchInput.placeholder = "正在加载搜索";
+    searchLoadPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = data.searchSource || "search-data.js";
+      script.async = true;
+      script.onload = () => {
+        searchIndex = Array.isArray(window.CHM_SEARCH) ? window.CHM_SEARCH : [];
+        data.search = searchIndex;
+        searchInput.placeholder = "搜索";
+        resolve(searchIndex);
+      };
+      script.onerror = () => {
+        searchLoadPromise = null;
+        searchInput.placeholder = "搜索";
+        reject(new Error("Search index failed to load"));
+      };
+      document.head.appendChild(script);
+    });
+    return searchLoadPromise;
+  }
+
   function renderResults(matches, query) {
     resultsEl.replaceChildren();
     const fragment = document.createDocumentFragment();
@@ -1931,16 +1977,30 @@ APP_JS = """(() => {
     return score;
   }
 
-  function runSearch() {
+  async function runSearch() {
     const query = searchInput.value.trim();
     if (!query) {
       showSidePanel(activeSidePanel, false);
       return;
     }
 
+    if (!searchIndex.length) {
+      renderSearchMessage("正在加载搜索索引...");
+      try {
+        await loadSearchIndex();
+      } catch (_error) {
+        renderSearchMessage("搜索索引加载失败，请刷新页面重试。");
+        return;
+      }
+      if (searchInput.value.trim() !== query) {
+        runSearch();
+        return;
+      }
+    }
+
     const terms = query.toLocaleLowerCase().split(/\\s+/).filter(Boolean);
     const queryLower = query.toLocaleLowerCase();
-    const matches = data.search
+    const matches = searchIndex
       .filter((entry) => {
         const haystack = `${entry.title} ${entry.text}`.toLocaleLowerCase();
         return terms.every((term) => haystack.includes(term));
@@ -1949,10 +2009,7 @@ APP_JS = """(() => {
       .sort((a, b) => a.score - b.score || a.index - b.index)
       .map((item) => item.entry);
 
-    treeEl.hidden = true;
-    favoritesPanel.hidden = true;
-    recentPanel.hidden = true;
-    resultsEl.hidden = false;
+    showSearchPanel();
     renderResults(matches, query);
   }
 
@@ -1963,6 +2020,9 @@ APP_JS = """(() => {
 
   sideTabs.forEach((tab) => {
     tab.addEventListener("click", () => showSidePanel(tab.dataset.panel || "tree", true));
+  });
+  searchInput.addEventListener("focus", () => {
+    if (!searchIndex.length) loadSearchIndex().catch(() => {});
   });
   searchInput.addEventListener("input", runSearch);
   searchInput.addEventListener("keydown", (event) => {
