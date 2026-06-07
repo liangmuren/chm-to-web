@@ -169,24 +169,35 @@ def find_extractor(explicit: str | None = None) -> str:
     if explicit:
         return explicit
 
-    for name in ("7z", "7zz", "extract_chmLib", "chmextract"):
+    candidates = ["7z", "7zz", "extract_chmLib", "chmextract"]
+    if sys.platform == "win32":
+        candidates.extend(["hh.exe", "hh"])
+
+    for name in candidates:
         found = shutil.which(name)
         if found:
             return found
 
-    raise SystemExit("No CHM extractor found. Install 7z/7zz or pass --extractor.")
+    raise SystemExit("No CHM extractor found. Install 7z/7zz, use Windows hh.exe, or pass --extractor.")
+
+
+def extractor_tool_name(extractor: str) -> str:
+    return Path(extractor.replace("\\", "/")).name.lower()
+
+
+def build_extract_command(source: Path, content_dir: Path, extractor: str) -> list[str]:
+    tool_name = extractor_tool_name(extractor)
+    if tool_name in {"extract_chmlib", "chmextract"}:
+        return [extractor, str(source), str(content_dir)]
+    if tool_name in {"hh", "hh.exe"}:
+        return [extractor, "-decompile", str(content_dir), str(source)]
+    return [extractor, "x", "-y", f"-o{content_dir}", str(source)]
 
 
 def extract_chm(source: Path, content_dir: Path, extractor: str) -> None:
     content_dir.mkdir(parents=True, exist_ok=True)
 
-    tool_name = Path(extractor).name.lower()
-    if tool_name in {"extract_chmlib", "chmextract"}:
-        command = [extractor, str(source), str(content_dir)]
-    else:
-        command = [extractor, "x", "-y", f"-o{content_dir}", str(source)]
-
-    subprocess.run(command, check=True)
+    subprocess.run(build_extract_command(source, content_dir, extractor), check=True)
 
 
 def find_toc(content_dir: Path, explicit: Path | None = None) -> Path:

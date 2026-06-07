@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from tools.chm_to_web import build_search_index, write_site, write_text
+from tools.chm_to_web import build_extract_command, build_search_index, write_site, write_text
 
 
 def test_build_search_index_includes_htm_and_html(tmp_path: Path) -> None:
@@ -25,6 +25,33 @@ def test_build_search_index_prefers_toc_title_for_matched_path(tmp_path: Path) -
     entries = build_search_index(content_dir, title_by_path={"topic.htm": "TOC Title"}, max_chars=100)
 
     assert entries[0]["title"] == "TOC Title"
+
+
+def test_build_extract_command_supports_windows_hh_decompile(tmp_path: Path) -> None:
+    source = tmp_path / "book.chm"
+    content_dir = tmp_path / "content"
+
+    command = build_extract_command(source, content_dir, r"C:\Windows\hh.exe")
+
+    assert command == [r"C:\Windows\hh.exe", "-decompile", str(content_dir), str(source)]
+
+
+def test_build_extract_command_supports_chmextract(tmp_path: Path) -> None:
+    source = tmp_path / "book.chm"
+    content_dir = tmp_path / "content"
+
+    command = build_extract_command(source, content_dir, "chmextract")
+
+    assert command == ["chmextract", str(source), str(content_dir)]
+
+
+def test_build_extract_command_defaults_to_7z_style(tmp_path: Path) -> None:
+    source = tmp_path / "book.chm"
+    content_dir = tmp_path / "content"
+
+    command = build_extract_command(source, content_dir, "7zz")
+
+    assert command == ["7zz", "x", "-y", f"-o{content_dir}", str(source)]
 
 
 def test_write_site_splits_search_index_from_bootstrap_data(tmp_path: Path) -> None:
